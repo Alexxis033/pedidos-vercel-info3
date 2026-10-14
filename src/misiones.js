@@ -140,19 +140,43 @@ export function resumenPorEstado(pedidos) {
 // "José Martínez". Un texto vacío (o solo espacios) devuelve todos.
 // Pista: 'Ramírez'.normalize('NFD').replace(/[̀-ͯ]/g, '')
 //        Investiga qué hace NFD. Es un problema real en sistemas en español.
-export function buscarPedidos(pedidos, textoBusqueda) {
-  if (!pedidos || !Array.isArray(pedidos)) return [];
-  if (!textoBusqueda || typeof textoBusqueda !== "string") return pedidos;
+export function buscarPedidos(pedidos, texto) {
+  if (!Array.isArray(pedidos)) {
+    return [];
+  }
 
-  const normalizar = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const termino = normalizar(textoBusqueda.trim());
+  // Función auxiliar para normalizar cadenas (quita acentos y pasa a minúsculas)
+  const normalizar = (str) => {
+    if (!str) return '';
+    return String(str)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Elimina los diacríticos (acentos)
+      .toLowerCase();
+  };
 
-  if (termino === "") return pedidos;
+  // Si el texto de búsqueda está vacío o solo tiene espacios, devolvemos todos los pedidos
+  const textoLimpio = normalizar(texto);
+  if (!textoLimpio.trim()) {
+    return pedidos;
+  }
 
-  return pedidos.filter((pedido) => {
-    if (!pedido || !pedido.cliente || !pedido.cliente.nombre) return false;
-    return normalizar(pedido.cliente.nombre).includes(termino);
+  // Filtramos los pedidos cuyo cliente contenga el texto buscado
+  return pedidos.filter(pedido => {
+    // Asumimos que el nombre del cliente está en pedido.cliente o pedido.cliente.nombre
+    // Manejemos ambos casos por seguridad (si es string o objeto)
+    let nombreCliente = '';
+    if (pedido && pedido.cliente) {
+      if (typeof pedido.cliente === 'string') {
+        nombreCliente = pedido.cliente;
+      } else if (typeof pedido.cliente.nombre === 'string') {
+        nombreCliente = pedido.cliente.nombre;
+      }
+    }
+
+    const nombreNormalizado = normalizar(nombreCliente);
+    return nombreNormalizado.includes(textoLimpio);
   });
+  return [] // TODO
 }
 // ----------------------------------------------------------------------------
 // MISIÓN 6 · DESTACADO — Los mejores clientes
