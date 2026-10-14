@@ -25,15 +25,24 @@ import { ESTADOS } from './datos.js'
 //   - Un pedido sin items cuesta 0.
 // Pista: prueba en la consola 0.1 + 0.2 y verás por qué hay que redondear.
 //        Math.round(x * 100) / 100
-export function totalPedido(pedido) {
-  if (!pedido || !pedido.items) return 0;
-  let suma = 0;
-  for (let item of pedido.items) {
-    suma += (item.precio || 0) * (item.cantidad || 0);
+export function totalPedido(pedido)
+ {if (!pedido || !pedido.items || pedido.items.length === 0) {
+    return 0;
   }
-  return Number(suma.toFixed(2));
-}s
+  const subtotal = pedido.items.reduce((acumulado, item) => {
+    return acumulado + (item.cantidad * item.precioUnitario);
+  }, 0);
 
+  // Obtenemos el descuento (si no viene o es undefined, por defecto es 0)
+  const descuento = pedido.descuento ?? 0;
+
+  // Calculamos el total aplicando el descuento
+  const totalSinRedondear = subtotal * (1 - descuento);
+
+  // Redondeamos a 2 decimales usando la pista proporcionada
+  return Math.round(totalSinRedondear * 100) / 100;
+  return 0 // TODO
+}
 // ----------------------------------------------------------------------------
 // MISIÓN 2 · RF4 — ¿Este cambio de estado es válido?
 // ----------------------------------------------------------------------------
