@@ -26,8 +26,13 @@ import { ESTADOS } from './datos.js'
 // Pista: prueba en la consola 0.1 + 0.2 y verás por qué hay que redondear.
 //        Math.round(x * 100) / 100
 export function totalPedido(pedido) {
-  return 0 // TODO
-}
+  if (!pedido || !pedido.items) return 0;
+  let suma = 0;
+  for (let item of pedido.items) {
+    suma += (item.precio || 0) * (item.cantidad || 0);
+  }
+  return Number(suma.toFixed(2));
+}s
 
 // ----------------------------------------------------------------------------
 // MISIÓN 2 · RF4 — ¿Este cambio de estado es válido?
@@ -38,10 +43,17 @@ export function totalPedido(pedido) {
 // de `actual`. Saltar pasos, regresar o moverse desde "entregado" es false.
 // Un estado que no existe también es false.
 // Pista: ESTADOS ya es un arreglo ordenado. ¿Qué te dice indexOf?
-export function puedeTransicionar(actual, nuevo) {
-  return true // TODO: hoy acepta cualquier cosa. ¿Qué tan grave sería eso en producción?
+export function puedeTransicionar(estadoActual, estadoNuevo) {
+  const transiciones = {
+    "registrado": ["en preparación", "cancelado"],
+    "en preparación": ["listo", "cancelado"],
+    "listo": ["entregado"],
+    "entregado": [],
+    "cancelado": []
+  };
+  if (!transiciones[estadoActual]) return false;
+  return transiciones[estadoActual].includes(estadoNuevo);
 }
-
 // ----------------------------------------------------------------------------
 // MISIÓN 3 · RF1 — ¿Los datos del cliente son válidos?
 // ----------------------------------------------------------------------------
@@ -54,7 +66,31 @@ export function puedeTransicionar(actual, nuevo) {
 //                         correo: algo@algo.algo   (el email es opcional)
 // Pista: '55 1234-5678'.replace(/[\s-]/g, '')   y   /^\d{10}$/.test(...)
 export function validarCliente(cliente) {
-  return [] // TODO
+  let errores = [];
+
+  // 1. Validar nombre: requerido, no vacío y no solo espacios
+  if (!cliente || !cliente.nombre || cliente.nombre.trim() === "") {
+    errores.push("nombre_requerido");
+  }
+
+  // 2. Validar teléfono: opcional, pero si viene debe tener entre 8 y 15 dígitos (o según el formato requerido)
+  if (cliente && cliente.telefono !== undefined && cliente.telefono !== null && cliente.telefono !== "") {
+    // Limpiamos espacios o guiones si los hubiera para contar los dígitos
+    const telLimpio = String(cliente.telefono).replace(/[\s-]/g, "");
+    if (!/^\d{8,15}$/.test(telLimpio)) {
+      errores.push("telefono_invalido");
+    }
+  }
+
+  // 3. Validar email: si viene, debe tener un formato válido con @ y punto
+  if (cliente && cliente.email !== undefined && cliente.email !== null && cliente.email !== "") {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cliente.email)) {
+      errores.push("email_invalido");
+    }
+  }
+
+  return errores;
 }
 
 // ----------------------------------------------------------------------------
@@ -64,7 +100,25 @@ export function validarCliente(cliente) {
 //   { registrado: 3, en_preparacion: 3, listo: 2, entregado: 2 }
 // Con una lista vacía, todos van en 0.
 export function resumenPorEstado(pedidos) {
-  return {} // TODO
+  const resumen = {
+    "registrado": 0,
+    "en preparación": 0,
+    "listo": 0,
+    "entregado": 0
+  };
+
+  if (!pedidos || !Array.isArray(pedidos)) return resumen;
+
+  for (let pedido of pedidos) {
+    if (pedido && pedido.estado) {
+      if (resumen[pedido.estado] !== undefined) {
+        resumen[pedido.estado]++;
+      } else {
+        resumen[pedido.estado] = 1;
+      }
+    }
+  }
+  return resumen;
 }
 
 // ----------------------------------------------------------------------------
@@ -75,10 +129,20 @@ export function resumenPorEstado(pedidos) {
 // "José Martínez". Un texto vacío (o solo espacios) devuelve todos.
 // Pista: 'Ramírez'.normalize('NFD').replace(/[̀-ͯ]/g, '')
 //        Investiga qué hace NFD. Es un problema real en sistemas en español.
-export function buscarPedidos(pedidos, texto) {
-  return [] // TODO
-}
+export function buscarPedidos(pedidos, textoBusqueda) {
+  if (!pedidos || !Array.isArray(pedidos)) return [];
+  if (!textoBusqueda || typeof textoBusqueda !== "string") return pedidos;
 
+  const normalizar = (str) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const termino = normalizar(textoBusqueda.trim());
+
+  if (termino === "") return pedidos;
+
+  return pedidos.filter((pedido) => {
+    if (!pedido || !pedido.cliente || !pedido.cliente.nombre) return false;
+    return normalizar(pedido.cliente.nombre).includes(termino);
+  });
+}
 // ----------------------------------------------------------------------------
 // MISIÓN 6 · DESTACADO — Los mejores clientes
 // ----------------------------------------------------------------------------
@@ -87,6 +151,22 @@ export function buscarPedidos(pedidos, texto) {
 // Formato: [{ cliente: 'Ana Ramírez', total: 1316 }, ...]
 // Orden: total de mayor a menor; si empatan, por nombre alfabético.
 // Pista: un objeto acumulador, luego Object.entries, map y sort.
-export function topClientes(pedidos, n) {
-  return [] // TODO
-}
+export function topClientesDestacado(pedidos) {
+  if (!pedidos || !Array.isArray(pedidos)) return [];
+  const acumulado = {};
+
+  for (let pedido of pedidos) {
+    if (!pedido || !pedido.cliente || !pedido.cliente.nombre) continue;
+    const nombre = pedido.cliente.nombre;
+    const total = totalPedido(pedido);
+    acumulado[nombre] = (acumulado[nombre] || 0) + total;
+  }
+
+  const resultado = Object.keys(acumulado).map((nombre) => ({
+    nombre,
+    total: acumulado[nombre]
+  }));
+
+  resultado.sort((a, b) => b.total - a.total);
+  return resultado;
+} 
